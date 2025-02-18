@@ -23,30 +23,22 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,       # 添加这行
+    a.zipfiles,       # 添加这行
+    a.datas,          # 添加这行
     [],
-    exclude_binaries=True,
     name='TXTEncodingAnalyzer',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=False,  # 禁用 UPX 压缩
+    upx=False,
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    # 移除 version='file_version_info.txt' 这一行
     icon=None,
 )
 
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    strip=False,
-    upx=False,  # 禁用 UPX 压缩
-    upx_exclude=[],
-    name='TXTEncodingAnalyzer',
-)
+# 删除 COLLECT 部分，因为我们使用单文件模式

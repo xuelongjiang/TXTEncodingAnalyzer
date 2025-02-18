@@ -7,95 +7,121 @@ from collections import Counter
 class EncodingAnalyzer(tk.Tk):
     def __init__(self):
         super().__init__()
+        self.init_ui()
         
+    def init_ui(self):
         self.title("文本文件编码分析器")
-        self.geometry("800x600")  # 调整窗口大小
+        self.geometry("800x600")
         
         self.selected_directory = None
         self.encoding_files = {}  # 存储每种编码对应的文件列表
         
-        # 创建界面元素
         self.create_widgets()
-    
+        self.setup_styles()
+        
     def create_widgets(self):
-        # 顶部按钮框架
+        # 创建顶部框架
+        self.create_top_frame()
+        # 创建主框架
+        self.create_main_frame()
+        
+    def create_top_frame(self):
         btn_frame = tk.Frame(self)
         btn_frame.pack(pady=10)
         
-        # 选择目录按钮
         self.select_btn = tk.Button(btn_frame, text="选择目录", command=self.select_directory)
         self.select_btn.pack(side=tk.LEFT, padx=5)
         
-        # 分析按钮
         self.analyze_btn = tk.Button(btn_frame, text="开始分析", command=self.start_analyze)
         self.analyze_btn.pack(side=tk.LEFT, padx=5)
         
-        # 显示选中的目录
         self.path_label = tk.Label(self, text="未选择目录", wraplength=500)
         self.path_label.pack(pady=5)
         
-        # 创建左右分栏框架
+    def create_main_frame(self):
         paned = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
         paned.pack(fill=tk.BOTH, expand=True, padx=5)
         
-        # 创建左侧框架
-        left_frame = ttk.LabelFrame(paned, text="编码统计 (点击查看文件列表)")
-        paned.add(left_frame, weight=1)
+        # 创建左侧编码统计区域
+        self.create_encoding_frame(paned)
+        # 创建右侧文件列表区域
+        self.create_file_frame(paned)
         
-        # 创建左侧编码统计表格
+    def create_encoding_frame(self, parent):
+        left_frame = ttk.LabelFrame(parent, text="编码统计 (点击查看文件列表)")
+        parent.add(left_frame, weight=1)
+        
         columns = ("编码", "文件数量", "百分比")
         self.tree = ttk.Treeview(left_frame, columns=columns, show="headings", style="Custom.Treeview")
+        
         for col in columns:
             self.tree.heading(col, text=col)
             self.tree.column(col, width=100)
         
-        # 添加滚动条
         tree_scroll = ttk.Scrollbar(left_frame, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=tree_scroll.set)
         
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         tree_scroll.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # 创建右侧框架
-        right_frame = ttk.LabelFrame(paned, text="文件列表 (双击打开文件)")
-        paned.add(right_frame, weight=1)
+        self.tree.bind('<<TreeviewSelect>>', self.on_encoding_select)
+        self.tree.bind('<Motion>', lambda e: self.tree.configure(cursor='hand2'))
         
-        # 创建右侧文件列表
+    def create_file_frame(self, parent):
+        right_frame = ttk.LabelFrame(parent, text="文件列表 (双击打开文件)")
+        parent.add(right_frame, weight=1)
+        
         self.file_list = ttk.Treeview(right_frame, columns=("文件路径",), show="headings", style="Custom.Treeview")
         self.file_list.heading("文件路径", text="文件路径")
         self.file_list.column("文件路径", width=300)
         
-        # 添加滚动条
         file_scroll = ttk.Scrollbar(right_frame, orient="vertical", command=self.file_list.yview)
         self.file_list.configure(yscrollcommand=file_scroll.set)
         
         self.file_list.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         file_scroll.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # 设置树形控件的样式
-        style = ttk.Style()
-        style.configure("Custom.Treeview", rowheight=25)  # 增加行高
-        style.configure("Custom.Treeview.Heading", font=('TkDefaultFont', 9, 'bold'))  # 加粗表头
-        
-        # 绑定事件
-        self.tree.bind('<<TreeviewSelect>>', self.on_encoding_select)
         self.file_list.bind('<Double-1>', self.open_file)
-        
-        # 添加鼠标悬停效果
-        self.tree.bind('<Motion>', lambda e: self.tree.configure(cursor='hand2'))
         self.file_list.bind('<Motion>', lambda e: self.file_list.configure(cursor='hand2'))
+        
+    def setup_styles(self):
+        style = ttk.Style()
+        style.configure("Custom.Treeview", rowheight=25)
+        style.configure("Custom.Treeview.Heading", font=('TkDefaultFont', 9, 'bold'))
+        
     def select_directory(self):
         directory = filedialog.askdirectory()
         if directory:
             self.selected_directory = directory
             self.path_label.config(text=directory)
+            # 清空之前的结果
+            self.clear_results()
             
     def start_analyze(self):
         if not self.selected_directory:
             tk.messagebox.showwarning("警告", "请先选择目录！")
             return
-        self.analyze_directory(self.selected_directory)
-    
+            
+        try:
+            self.analyze_btn.config(state=tk.DISABLED)
+            self.path_label.config(text="正在分析中...")
+            self.update()
+            
+            self.analyze_directory(self.selected_directory)
+            
+            self.path_label.config(text=self.selected_directory)
+            tk.messagebox.showinfo("完成", "分析完成！")
+        except Exception as e:
+            tk.messagebox.showerror("错误", f"分析过程出错：{str(e)}")
+        finally:
+            self.analyze_btn.config(state=tk.NORMAL)
+            
+    def clear_results(self):
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        for item in self.file_list.get_children():
+            self.file_list.delete(item)
+        self.encoding_files.clear()
     def analyze_directory(self, directory):
         encoding_counter = Counter()
         total_files = 0
@@ -158,3 +184,10 @@ class EncodingAnalyzer(tk.Tk):
             
         file_path = self.file_list.item(selected_items[0])['values'][0]
         os.startfile(file_path)  # Windows系统打开文件
+# 将主程序入口移到类定义之外
+if __name__ == "__main__":
+    try:
+        app = EncodingAnalyzer()
+        app.mainloop()
+    except Exception as e:
+        print(f"程序出错: {e}")
