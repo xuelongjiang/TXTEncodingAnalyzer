@@ -158,7 +158,3 @@ class EncodingAnalyzer(tk.Tk):
             
         file_path = self.file_list.item(selected_items[0])['values'][0]
         os.startfile(file_path)  # Windows系统打开文件
-# 在文件底部添加主程序入口
-if __name__ == "__main__":
-    app = EncodingAnalyzer()
-    app.mainloop()
